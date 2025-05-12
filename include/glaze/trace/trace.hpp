@@ -55,66 +55,59 @@ namespace glz
       glz::raw_json args = "{}"; // metadata
    };
 
-   template <bool Enabled = true>
    struct trace
    {
-      std::atomic<bool> disabled = false;
-      display_time_unit displayTimeUnit = display_time_unit::ms;
       std::deque<trace_event> traceEvents{};
-      std::optional<std::chrono::time_point<std::chrono::steady_clock>> t0{}; // the time of the first event
-      std::mutex mtx{};
+      display_time_unit displayTimeUnit = display_time_unit::ms;
 
-      void clear() { traceEvents.clear(); }
+      std::optional<std::chrono::time_point<std::chrono::steady_clock>> t0{}; // the time of the first event
+
+      std::atomic<bool> disabled = false;
+      std::mutex mtx{};
 
       template <class... Args>
          requires(sizeof...(Args) <= 1)
       void begin(const std::string_view name, Args&&... args) noexcept
       {
-         if constexpr (Enabled) {
-            if (disabled) {
-               return;
-            }
-            duration(name, 'B', std::forward<Args>(args)...);
+         if (disabled) {
+            return;
          }
+         duration(name, 'B', std::forward<Args>(args)...);
       }
 
       template <class... Args>
          requires(sizeof...(Args) <= 1)
       void end(const std::string_view name, Args&&... args) noexcept
       {
-         if constexpr (Enabled) {
-            if (disabled) {
-               return;
-            }
-            duration(name, 'E', std::forward<Args>(args)...);
+         if (disabled) {
+            return;
          }
+         duration(name, 'E', std::forward<Args>(args)...);
       }
 
       template <class... Args>
          requires(sizeof...(Args) <= 1)
       void duration(const std::string_view name, const char phase, Args&&... args) noexcept
       {
-         if constexpr (Enabled) {
-            if (disabled) {
-               return;
-            }
+         if (disabled) {
+            return;
+         }
 
-            const auto tnow = std::chrono::steady_clock::now();
-            trace_event* event{};
-            {
-               std::unique_lock lock{mtx};
-               if (!t0) {
-                  t0 = tnow;
-               }
-               event = &traceEvents.emplace_back();
+         const auto tnow = std::chrono::steady_clock::now();
+         trace_event* event{};
+         {
+            std::unique_lock lock{mtx};
+            if (!t0) {
+               t0 = tnow;
             }
-            event->name = name;
-            event->ph = phase;
-            event->ts = std::chrono::duration_cast<std::chrono::microseconds>(tnow - t0.value()).count();
-            event->tid = std::hash<std::thread::id>{}(std::this_thread::get_id());
-            if constexpr (sizeof...(Args) > 0) {
-               std::ignore = glz::write_json(std::forward<Args>(args)..., event->args.str);
-            }
+            event = &traceEvents.emplace_back();
+         }
+         event->name = name;
+         event->ph = phase;
+         event->ts = std::chrono::duration_cast<std::chrono::microseconds>(tnow - t0.value()).count();
+         event->tid = std::hash<std::thread::id>{}(std::this_thread::get_id());
+         if constexpr (sizeof...(Args) > 0) {
+            std::ignore = glz::write_json(std::forward<Args>(args)..., event->args.str);
          }
       }
 
@@ -122,52 +115,46 @@ namespace glz
          requires(sizeof...(Args) <= 1)
       void async_begin(const std::string_view name, Args&&... args) noexcept
       {
-         if constexpr (Enabled) {
-            if (disabled) {
-               return;
-            }
-            async(name, 'b', std::forward<Args>(args)...);
+         if (disabled) {
+            return;
          }
+         async(name, 'b', std::forward<Args>(args)...);
       }
 
       template <class... Args>
          requires(sizeof...(Args) <= 1)
       void async_end(const std::string_view name, Args&&... args) noexcept
       {
-         if constexpr (Enabled) {
-            if (disabled) {
-               return;
-            }
-            async(name, 'e', std::forward<Args>(args)...);
+         if (disabled) {
+            return;
          }
+         async(name, 'e', std::forward<Args>(args)...);
       }
 
       template <class... Args>
          requires(sizeof...(Args) <= 1)
       void async(const std::string_view name, const char phase, Args&&... args) noexcept
       {
-         if constexpr (Enabled) {
-            if (disabled) {
-               return;
-            }
+         if (disabled) {
+            return;
+         }
 
-            const auto tnow = std::chrono::steady_clock::now();
-            trace_event* event{};
-            {
-               std::unique_lock lock{mtx};
-               if (!t0) {
-                  t0 = tnow;
-               }
-               event = &traceEvents.emplace_back();
+         const auto tnow = std::chrono::steady_clock::now();
+         trace_event* event{};
+         {
+            std::unique_lock lock{mtx};
+            if (!t0) {
+               t0 = tnow;
             }
-            event->name = name;
-            event->ph = phase;
-            event->ts = std::chrono::duration_cast<std::chrono::microseconds>(tnow - t0.value()).count();
-            event->tid = std::hash<std::thread::id>{}(std::this_thread::get_id());
-            event->id = std::hash<std::string_view>{}(name);
-            if constexpr (sizeof...(Args) > 0) {
-               std::ignore = glz::write_json(std::forward<Args>(args)..., event->args.str);
-            }
+            event = &traceEvents.emplace_back();
+         }
+         event->name = name;
+         event->ph = phase;
+         event->ts = std::chrono::duration_cast<std::chrono::microseconds>(tnow - t0.value()).count();
+         event->tid = std::hash<std::thread::id>{}(std::this_thread::get_id());
+         event->id = std::hash<std::string_view>{}(name);
+         if constexpr (sizeof...(Args) > 0) {
+            std::ignore = glz::write_json(std::forward<Args>(args)..., event->args.str);
          }
       }
 
@@ -178,18 +165,14 @@ namespace glz
 
          duration_scoper(trace& tr, const std::string_view name) noexcept : tr(tr), name(name)
          {
-            if constexpr (Enabled) {
-               if (not tr.disabled) {
-                  tr.begin(name);
-               }
+            if (not tr.disabled) {
+               tr.begin(name);
             }
          }
          ~duration_scoper() noexcept
          {
-            if constexpr (Enabled) {
-               if (not tr.disabled) {
-                  tr.end(name);
-               }
+            if (not tr.disabled) {
+               tr.end(name);
             }
          }
 
@@ -202,18 +185,14 @@ namespace glz
 
          async_scoper(trace& tr, const std::string_view name) noexcept : tr(tr), name(name)
          {
-            if constexpr (Enabled) {
-               if (not tr.disabled) {
-                  tr.async_begin(name);
-               }
+            if (not tr.disabled) {
+               tr.begin(name);
             }
          }
          ~async_scoper() noexcept
          {
-            if constexpr (Enabled) {
-               if (not tr.disabled) {
-                  tr.async_end(name);
-               }
+            if (not tr.disabled) {
+               tr.end(name);
             }
          }
 
@@ -226,17 +205,9 @@ namespace glz
    };
 
    template <>
-   struct meta<trace<true>>
+   struct meta<trace>
    {
-      using T = trace<true>;
+      using T = trace;
       static constexpr auto value = object(&T::traceEvents, &T::displayTimeUnit);
-   };
-
-   template <>
-   struct meta<trace<false>>
-   {
-      using T = trace<false>;
-      // Compile time disabled trace writes out an empty object
-      static constexpr auto value = object();
    };
 }

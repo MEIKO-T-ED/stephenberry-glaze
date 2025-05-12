@@ -4,6 +4,8 @@
 #pragma once
 
 #include "glaze/core/ptr.hpp"
+#include "glaze/json/read.hpp"
+#include "glaze/json/write.hpp"
 
 namespace glz
 {

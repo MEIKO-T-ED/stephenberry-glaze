@@ -98,7 +98,7 @@ namespace glz
       }
 
       template <class T>
-         requires(requires { static_cast<T>(std::declval<double>()); })
+         requires std::convertible_to<double, T>
       [[nodiscard]] T as() const
       {
          // Can be used for int and the like
@@ -173,12 +173,6 @@ namespace glz
       }
 
       json_t& operator=(const std::string_view value)
-      {
-         data = std::string(value);
-         return *this;
-      }
-
-      json_t& operator=(const char* value)
       {
          data = std::string(value);
          return *this;
@@ -363,7 +357,7 @@ namespace glz
    // These functions allow a json_t value to be read/written to a C++ struct
 
    template <auto Opts, class T>
-      requires read_supported<T, Opts.format>
+      requires read_supported<Opts.format, T>
    [[nodiscard]] error_ctx read(T& value, const json_t& source)
    {
       auto buffer = source.dump();
@@ -376,7 +370,8 @@ namespace glz
       }
    }
 
-   template <read_supported<JSON> T>
+   template <class T>
+      requires(read_supported<JSON, T>)
    [[nodiscard]] error_ctx read_json(T& value, const json_t& source)
    {
       auto buffer = source.dump();
@@ -388,7 +383,8 @@ namespace glz
       }
    }
 
-   template <read_supported<JSON> T>
+   template <class T>
+      requires(read_supported<JSON, T>)
    [[nodiscard]] expected<T, error_ctx> read_json(const json_t& source)
    {
       auto buffer = source.dump();

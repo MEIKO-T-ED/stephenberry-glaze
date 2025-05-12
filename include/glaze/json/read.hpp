@@ -332,7 +332,7 @@ namespace glz
       template <auto Opts, class... Args>
       static void op(auto&&, is_context auto&& ctx, auto&& it, auto&& end) noexcept
       {
-         if constexpr (!check_ws_handled(Opts)) {
+         if constexpr (!has_ws_handled(Opts)) {
             if (skip_ws<Opts>(ctx, it, end)) {
                return;
             }
@@ -424,7 +424,7 @@ namespace glz
       static void op(auto&& v, is_context auto&& ctx, auto&& it, auto&& end) noexcept
       {
          constexpr auto Opts = ws_handled_off<Options>();
-         if constexpr (!check_ws_handled(Options)) {
+         if constexpr (!has_ws_handled(Options)) {
             if (skip_ws<Opts>(ctx, it, end)) {
                return;
             }
@@ -470,13 +470,13 @@ namespace glz
       template <auto Opts>
       GLZ_ALWAYS_INLINE static void op(auto&&, is_context auto&& ctx, auto&& it, auto&& end) noexcept
       {
-         if constexpr (!check_ws_handled(Opts)) {
+         if constexpr (!has_ws_handled(Opts)) {
             if (skip_ws<Opts>(ctx, it, end)) {
                return;
             }
          }
          static constexpr sv null_string = "null";
-         if constexpr (not check_is_padded(Opts)) {
+         if constexpr (not has_is_padded(Opts)) {
             const auto n = size_t(end - it);
             if ((n < 4) || not comparitor<null_string>(it)) [[unlikely]] {
                ctx.error = error_code::syntax_error;
@@ -506,7 +506,7 @@ namespace glz
             }
          }
 
-         if constexpr (!check_ws_handled(Opts)) {
+         if constexpr (!has_ws_handled(Opts)) {
             if (skip_ws<Opts>(ctx, it, end)) {
                return;
             }
@@ -527,7 +527,7 @@ namespace glz
             }
          }
          else {
-            if constexpr (not check_is_padded(Opts)) {
+            if constexpr (not has_is_padded(Opts)) {
                if (size_t(end - it) < 4) [[unlikely]] {
                   ctx.error = error_code::expected_true_or_false;
                   return;
@@ -623,7 +623,7 @@ namespace glz
             }
          }
 
-         if constexpr (!check_ws_handled(Opts)) {
+         if constexpr (!has_ws_handled(Opts)) {
             if (skip_ws<Opts>(ctx, it, end)) {
                return;
             }
@@ -711,7 +711,7 @@ namespace glz
    struct from<JSON, T>
    {
       template <auto Opts, class It, class End>
-         requires(check_is_padded(Opts))
+         requires(has_is_padded(Opts))
       static void op(auto& value, is_context auto&& ctx, It&& it, End&& end)
       {
          if constexpr (Opts.number) {
@@ -723,8 +723,8 @@ namespace glz
             value.append(start, size_t(it - start));
          }
          else {
-            if constexpr (!check_opening_handled(Opts)) {
-               if constexpr (!check_ws_handled(Opts)) {
+            if constexpr (!has_opening_handled(Opts)) {
+               if constexpr (!has_ws_handled(Opts)) {
                   if (skip_ws<Opts>(ctx, it, end)) {
                      return;
                   }
@@ -846,7 +846,7 @@ namespace glz
       }
 
       template <auto Opts, class It, class End>
-         requires(not check_is_padded(Opts))
+         requires(not has_is_padded(Opts))
       static void op(auto& value, is_context auto&& ctx, It&& it, End&& end)
       {
          if constexpr (Opts.number) {
@@ -862,8 +862,8 @@ namespace glz
             value.append(start, size_t(it - start));
          }
          else {
-            if constexpr (!check_opening_handled(Opts)) {
-               if constexpr (!check_ws_handled(Opts)) {
+            if constexpr (!has_opening_handled(Opts)) {
+               if constexpr (!has_ws_handled(Opts)) {
                   if (skip_ws<Opts>(ctx, it, end)) {
                      return;
                   }
@@ -1119,8 +1119,8 @@ namespace glz
       template <auto Opts, class It, class End>
       GLZ_ALWAYS_INLINE static void op(auto& value, is_context auto&& ctx, It&& it, End&& end) noexcept
       {
-         if constexpr (!check_opening_handled(Opts)) {
-            if constexpr (!check_ws_handled(Opts)) {
+         if constexpr (!has_opening_handled(Opts)) {
+            if constexpr (!has_ws_handled(Opts)) {
                if (skip_ws<Opts>(ctx, it, end)) {
                   return;
                }
@@ -1159,7 +1159,7 @@ namespace glz
          }
          else if constexpr (static_string_t<T>) {
             const size_t n = it - start;
-            if (n > value.capacity()) {
+            if (n > value.size()) {
                ctx.error = error_code::unexpected_end;
                return;
             }
@@ -1181,8 +1181,8 @@ namespace glz
       template <auto Opts>
       static void op(auto& value, is_context auto&& ctx, auto&& it, auto&& end) noexcept
       {
-         if constexpr (!check_opening_handled(Opts)) {
-            if constexpr (!check_ws_handled(Opts)) {
+         if constexpr (!has_opening_handled(Opts)) {
+            if constexpr (!has_ws_handled(Opts)) {
                if (skip_ws<Opts>(ctx, it, end)) {
                   return;
                }
@@ -1261,13 +1261,13 @@ namespace glz
    };
 
    template <class T>
-      requires(is_named_enum<T>)
+      requires((glaze_enum_t<T> || (meta_keys<T> && std::is_enum_v<T>)) && !custom_read<T>)
    struct from<JSON, T>
    {
       template <auto Opts>
       static void op(auto& value, is_context auto&& ctx, auto&& it, auto&& end) noexcept
       {
-         if constexpr (!check_ws_handled(Opts)) {
+         if constexpr (!has_ws_handled(Opts)) {
             if (skip_ws<Opts>(ctx, it, end)) {
                return;
             }
@@ -1325,7 +1325,7 @@ namespace glz
       template <auto Opts>
       static void op(auto& /*value*/, is_context auto&& ctx, auto&& it, auto&& end)
       {
-         if constexpr (!check_ws_handled(Opts)) {
+         if constexpr (!has_ws_handled(Opts)) {
             if (skip_ws<Opts>(ctx, it, end)) {
                return;
             }
@@ -1390,7 +1390,7 @@ namespace glz
       static void op(auto& value, is_context auto&& ctx, auto&& it, auto&& end)
       {
          constexpr auto Opts = ws_handled_off<Options>();
-         if constexpr (!check_ws_handled(Options)) {
+         if constexpr (!has_ws_handled(Options)) {
             if (skip_ws<Opts>(ctx, it, end)) {
                return;
             }
@@ -1451,7 +1451,7 @@ namespace glz
       static void op(auto&& value, is_context auto&& ctx, auto&& it, auto&& end)
       {
          constexpr auto Opts = ws_handled_off<Options>();
-         if constexpr (!check_ws_handled(Options)) {
+         if constexpr (!has_ws_handled(Options)) {
             if (skip_ws<Opts>(ctx, it, end)) {
                return;
             }
@@ -1586,8 +1586,8 @@ namespace glz
       static void op(auto&& value, is_context auto&& ctx, auto&& it, auto&& end)
       {
          static constexpr auto Opts = opening_handled_off<ws_handled_off<Options>()>();
-         if constexpr (!check_opening_handled(Options)) {
-            if constexpr (!check_ws_handled(Options)) {
+         if constexpr (!has_opening_handled(Options)) {
+            if constexpr (!has_ws_handled(Options)) {
                if (skip_ws<Opts>(ctx, it, end)) {
                   return;
                }
@@ -1755,7 +1755,7 @@ namespace glz
       static void op(auto& value, is_context auto&& ctx, auto&& it, auto&& end)
       {
          constexpr auto Opts = ws_handled_off<Options>();
-         if constexpr (!check_ws_handled(Options)) {
+         if constexpr (!has_ws_handled(Options)) {
             if (skip_ws<Opts>(ctx, it, end)) {
                return;
             }
@@ -1810,7 +1810,7 @@ namespace glz
             }
          }();
 
-         if constexpr (!check_ws_handled(Opts)) {
+         if constexpr (!has_ws_handled(Opts)) {
             if (skip_ws<Opts>(ctx, it, end)) {
                return;
             }
@@ -1890,7 +1890,7 @@ namespace glz
       template <auto Opts>
       static void op(auto&& value, is_context auto&& ctx, auto&& it, auto&& end)
       {
-         if constexpr (!check_ws_handled(Opts)) {
+         if constexpr (!has_ws_handled(Opts)) {
             if (skip_ws<Opts>(ctx, it, end)) {
                return;
             }
@@ -2000,8 +2000,8 @@ namespace glz
       static void op(T& value, is_context auto&& ctx, auto&& it, auto&& end)
       {
          constexpr auto Opts = opening_handled_off<ws_handled_off<Options>()>();
-         if constexpr (!check_opening_handled(Options)) {
-            if constexpr (!check_ws_handled(Options)) {
+         if constexpr (!has_opening_handled(Options)) {
+            if constexpr (!has_ws_handled(Options)) {
                if (skip_ws<Opts>(ctx, it, end)) {
                   return;
                }
@@ -2017,6 +2017,9 @@ namespace glz
             return;
          }
 
+         // Only used if error_on_missing_keys = true
+         [[maybe_unused]] bit_array<1> fields{};
+
          if (*it == '}') {
             if constexpr (not Opts.null_terminated) {
                --ctx.indentation_level;
@@ -2027,8 +2030,7 @@ namespace glz
             return;
          }
 
-         using first_type = typename T::first_type;
-         if constexpr (str_t<first_type> || is_named_enum<first_type>) {
+         if constexpr (str_t<typename T::first_type>) {
             parse<JSON>::op<Opts>(value.first, ctx, it, end);
             if (bool(ctx.error)) [[unlikely]]
                return;
@@ -2101,8 +2103,8 @@ namespace glz
          static constexpr auto num_members = reflect<T>::size;
 
          static constexpr auto Opts = opening_handled_off<ws_handled_off<Options>()>();
-         if constexpr (!check_opening_handled(Options)) {
-            if constexpr (!check_ws_handled(Options)) {
+         if constexpr (!has_opening_handled(Options)) {
+            if constexpr (!has_ws_handled(Options)) {
                if (skip_ws<Opts>(ctx, it, end)) {
                   return;
                }
@@ -2618,7 +2620,7 @@ namespace glz
       {
          constexpr auto Opts = ws_handled_off<Options>();
          if constexpr (variant_is_auto_deducible<T>()) {
-            if constexpr (not check_ws_handled(Options)) {
+            if constexpr (not has_ws_handled(Options)) {
                if (skip_ws<Opts>(ctx, it, end)) {
                   return;
                }
@@ -2947,7 +2949,7 @@ namespace glz
          auto& value = wrapper.value;
 
          constexpr auto Opts = ws_handled_off<Options>();
-         if constexpr (!check_ws_handled(Options)) {
+         if constexpr (!has_ws_handled(Options)) {
             if (skip_ws<Opts>(ctx, it, end)) {
                return;
             }
@@ -3018,7 +3020,7 @@ namespace glz
       template <auto Opts, class... Args>
       static void op(auto&& value, is_context auto&& ctx, auto&& it, auto&& end)
       {
-         if constexpr (!check_ws_handled(Opts)) {
+         if constexpr (!has_ws_handled(Opts)) {
             if (skip_ws<Opts>(ctx, it, end)) {
                return;
             }
@@ -3131,7 +3133,7 @@ namespace glz
       static void op(auto&& value, is_context auto&& ctx, auto&& it, auto&& end)
       {
          constexpr auto Opts = ws_handled_off<Options>();
-         if constexpr (!check_ws_handled(Options)) {
+         if constexpr (!has_ws_handled(Options)) {
             if (skip_ws<Opts>(ctx, it, end)) {
                return;
             }
@@ -3241,14 +3243,16 @@ namespace glz
       return read<opts_validate{{opts{.comments = true}}}>(skip_value, std::forward<Buffer>(buffer), ctx);
    }
 
-   template <read_supported<JSON> T, is_buffer Buffer>
+   template <class T, is_buffer Buffer>
+      requires(read_supported<JSON, T>)
    [[nodiscard]] error_ctx read_json(T& value, Buffer&& buffer)
    {
       context ctx{};
       return read<opts{}>(value, std::forward<Buffer>(buffer), ctx);
    }
 
-   template <read_supported<JSON> T, is_buffer Buffer>
+   template <class T, is_buffer Buffer>
+      requires(read_supported<JSON, T>)
    [[nodiscard]] expected<T, error_ctx> read_json(Buffer&& buffer)
    {
       T value{};
@@ -3260,14 +3264,16 @@ namespace glz
       return value;
    }
 
-   template <read_supported<JSON> T, is_buffer Buffer>
+   template <class T, is_buffer Buffer>
+      requires(read_supported<JSON, T>)
    [[nodiscard]] error_ctx read_jsonc(T& value, Buffer&& buffer)
    {
       context ctx{};
       return read<opts{.comments = true}>(value, std::forward<Buffer>(buffer), ctx);
    }
 
-   template <read_supported<JSON> T, is_buffer Buffer>
+   template <class T, is_buffer Buffer>
+      requires(read_supported<JSON, T>)
    [[nodiscard]] expected<T, error_ctx> read_jsonc(Buffer&& buffer)
    {
       T value{};
@@ -3279,7 +3285,8 @@ namespace glz
       return value;
    }
 
-   template <auto Opts = opts{}, read_supported<JSON> T, is_buffer Buffer>
+   template <auto Opts = opts{}, class T, is_buffer Buffer>
+      requires(read_supported<JSON, T>)
    [[nodiscard]] error_ctx read_file_json(T& value, const sv file_name, Buffer&& buffer)
    {
       context ctx{};
@@ -3294,7 +3301,8 @@ namespace glz
       return read<set_json<Opts>()>(value, buffer, ctx);
    }
 
-   template <auto Opts = opts{}, read_supported<JSON> T, is_buffer Buffer>
+   template <auto Opts = opts{}, class T, is_buffer Buffer>
+      requires(read_supported<JSON, T>)
    [[nodiscard]] error_ctx read_file_jsonc(T& value, const sv file_name, Buffer&& buffer)
    {
       context ctx{};

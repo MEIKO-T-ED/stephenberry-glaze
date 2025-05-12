@@ -709,7 +709,7 @@ namespace glz
          using V = std::decay_t<decltype(value.value)>;
          static constexpr auto N = glz::tuple_size_v<V> / 2;
 
-         if constexpr (!check_opening_handled(Options)) {
+         if constexpr (!has_opening_handled(Options)) {
             constexpr uint8_t type = 0; // string key
             constexpr uint8_t tag = tag::object | type;
             dump_type(tag, args...);
@@ -821,7 +821,7 @@ namespace glz
          requires(Options.structs_as_arrays == false)
       static void op(auto&& value, is_context auto&& ctx, Args&&... args)
       {
-         if constexpr (!check_opening_handled(Options)) {
+         if constexpr (!has_opening_handled(Options)) {
             constexpr uint8_t type = 0; // string key
             constexpr uint8_t tag = tag::object | type;
             dump_type(tag, args...);
@@ -906,26 +906,30 @@ namespace glz
       }
    };
 
-   template <write_supported<BEVE> T, class Buffer>
+   template <class T, class Buffer>
+      requires(write_supported<BEVE, T>)
    [[nodiscard]] error_ctx write_beve(T&& value, Buffer&& buffer)
    {
       return write<opts{.format = BEVE}>(std::forward<T>(value), std::forward<Buffer>(buffer));
    }
 
-   template <auto Opts = opts{}, write_supported<BEVE> T>
+   template <auto Opts = opts{}, class T>
+      requires(write_supported<BEVE, T>)
    [[nodiscard]] glz::expected<std::string, error_ctx> write_beve(T&& value)
    {
       return write<set_beve<Opts>()>(std::forward<T>(value));
    }
 
-   template <auto& Partial, write_supported<BEVE> T, class Buffer>
+   template <auto& Partial, class T, class Buffer>
+      requires(write_supported<BEVE, T>)
    [[nodiscard]] error_ctx write_beve(T&& value, Buffer&& buffer)
    {
       return write<Partial, opts{.format = BEVE}>(std::forward<T>(value), std::forward<Buffer>(buffer));
    }
 
    // requires file_name to be null terminated
-   template <auto Opts = opts{}, write_supported<BEVE> T>
+   template <auto Opts = opts{}, class T>
+      requires(write_supported<BEVE, T>)
    [[nodiscard]] error_ctx write_file_beve(T&& value, const sv file_name, auto&& buffer)
    {
       static_assert(sizeof(decltype(*buffer.data())) == 1);
@@ -947,20 +951,23 @@ namespace glz
       return {};
    }
 
-   template <write_supported<BEVE> T, class Buffer>
+   template <class T, class Buffer>
+      requires(write_supported<BEVE, T>)
    [[nodiscard]] error_ctx write_beve_untagged(T&& value, Buffer&& buffer)
    {
       return write<opts{.format = BEVE, .structs_as_arrays = true}>(std::forward<T>(value),
                                                                     std::forward<Buffer>(buffer));
    }
 
-   template <write_supported<BEVE> T>
+   template <class T>
+      requires(write_supported<BEVE, T>)
    [[nodiscard]] error_ctx write_beve_untagged(T&& value)
    {
       return write<opts{.format = BEVE, .structs_as_arrays = true}>(std::forward<T>(value));
    }
 
-   template <auto Opts = opts{}, write_supported<BEVE> T>
+   template <auto Opts = opts{}, class T>
+      requires(write_supported<BEVE, T>)
    [[nodiscard]] error_ctx write_file_beve_untagged(T&& value, const std::string& file_name, auto&& buffer)
    {
       return write_file_beve<opt_true<Opts, &opts::structs_as_arrays>>(std::forward<T>(value), file_name, buffer);

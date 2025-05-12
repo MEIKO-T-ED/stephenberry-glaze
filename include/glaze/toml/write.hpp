@@ -12,7 +12,6 @@
 #include "glaze/util/dump.hpp"
 #include "glaze/util/for_each.hpp"
 #include "glaze/util/itoa.hpp"
-#include "glaze/util/parse.hpp"
 
 namespace glz
 {
@@ -58,7 +57,7 @@ namespace glz
       template <auto Opts, class B>
       GLZ_ALWAYS_INLINE static void op(const bool value, is_context auto&&, B&& b, auto&& ix)
       {
-         static constexpr auto checked = not check_write_unchecked(Opts);
+         static constexpr auto checked = not has_write_unchecked(Opts);
          if constexpr (checked && vector_like<B>) {
             if (const auto n = ix + 8; n > b.size()) [[unlikely]] {
                b.resize(2 * n);
@@ -551,25 +550,29 @@ namespace glz
       }
    };
 
-   template <write_supported<TOML> T, output_buffer Buffer>
+   template <class T, output_buffer Buffer>
+      requires(write_supported<TOML, T>)
    [[nodiscard]] error_ctx write_toml(T&& value, Buffer&& buffer)
    {
       return write<opts{.format = TOML}>(std::forward<T>(value), std::forward<Buffer>(buffer));
    }
 
-   template <write_supported<TOML> T, raw_buffer Buffer>
+   template <class T, raw_buffer Buffer>
+      requires(write_supported<TOML, T>)
    [[nodiscard]] glz::expected<size_t, error_ctx> write_toml(T&& value, Buffer&& buffer)
    {
       return write<opts{.format = TOML}>(std::forward<T>(value), std::forward<Buffer>(buffer));
    }
 
-   template <write_supported<TOML> T>
+   template <class T>
+      requires(write_supported<TOML, T>)
    [[nodiscard]] glz::expected<std::string, error_ctx> write_toml(T&& value)
    {
       return write<opts{.format = TOML}>(std::forward<T>(value));
    }
 
-   template <auto Opts = opts{.format = TOML}, write_supported<TOML> T>
+   template <auto Opts = opts{.format = TOML}, class T>
+      requires(write_supported<TOML, T>)
    [[nodiscard]] error_ctx write_file_toml(T&& value, const sv file_name, auto&& buffer)
    {
       const auto ec = write<set_toml<Opts>()>(std::forward<T>(value), buffer);

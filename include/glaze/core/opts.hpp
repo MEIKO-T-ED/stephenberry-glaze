@@ -9,7 +9,7 @@
 
 namespace glz
 {
-   // Formats
+   // format
    // Built in formats must be less than 65536
    // User defined formats can be 65536 to 4294967296
    inline constexpr uint32_t INVALID = 0;
@@ -20,7 +20,6 @@ namespace glz
    inline constexpr uint32_t TOML = 400;
    inline constexpr uint32_t STENCIL = 500;
    inline constexpr uint32_t CSV = 10000;
-   inline constexpr uint32_t EETF = 20000;
 
    // layout
    inline constexpr uint8_t rowwise = 0;
@@ -64,10 +63,6 @@ namespace glz
    // You can create your own options struct with more or less fields as long as your struct has:
    // - opts_internal internal{};
    // - uint32_t format
-   // The recommended approach is to inherit:
-   // struct custom_opts : glz::opts {
-   //   bool validate_trailing_whitespace = true;
-   // };
 
    struct opts
    {
@@ -89,6 +84,11 @@ namespace glz
       bool error_on_const_read =
          false; // Error if attempt is made to read into a const value, by default the value is skipped without error
 
+      uint8_t layout = rowwise; // CSV row wise output/input
+
+      // The maximum precision type used for writing floats, higher precision floats will be cast down to this precision
+      float_precision float_max_write_precision{};
+
       bool bools_as_numbers = false; // Read and write booleans with 1's and 0's
 
       bool quoted_num = false; // treat numbers as quoted or array-like types as having quoted numbers
@@ -104,22 +104,6 @@ namespace glz
       uint32_t internal{}; // default should be 0
 
       [[nodiscard]] constexpr bool operator==(const opts&) const noexcept = default;
-   };
-
-   // CSV Format Options
-   // Note: You can always create your own options struct if you want to share it between formats
-   struct opts_csv
-   {
-      uint32_t format = CSV;
-      static constexpr bool null_terminated = true; // Whether the input buffer is null terminated
-      uint8_t layout = rowwise; // CSV row wise output/input
-      bool use_headers = true; // Whether to write column/row headers in CSV format
-      bool append_arrays = false; // When reading into an array the data will be appended if the type supports it
-
-      // INTERNAL OPTIONS
-      uint32_t internal{}; // default should be 0
-
-      [[nodiscard]] constexpr bool operator==(const opts_csv&) const noexcept = default;
    };
 
    // Add these fields to a custom options struct if you want to use them
@@ -152,18 +136,6 @@ namespace glz
    // ---
    // bool hide_non_invocable = true;
    // Hides non-invocable members from the cli_menu (may be applied elsewhere in the future)
-
-   // ---
-   // bool escape_control_characters = false;
-   // Escapes control characters like 0x01 or null characters with proper unicode escape sequences.
-   // The default behavior does not escape these characters for performance and safety
-   // (embedding nulls can cause issues, especially with C APIs)
-   // Glaze will error when parsing non-escaped control character (per the JSON spec)
-   // This option allows escaping control characters to avoid such errors.
-
-   // ---
-   // float_precision float_max_write_precision{};
-   // The maximum precision type used for writing floats, higher precision floats will be cast down to this precision
 
    consteval bool check_validate_skipped(auto&& Opts)
    {
@@ -245,64 +217,25 @@ namespace glz
       }
    }
 
-   consteval bool check_escape_control_characters(auto&& Opts)
-   {
-      if constexpr (requires { Opts.escape_control_characters; }) {
-         return Opts.escape_control_characters;
-      }
-      else {
-         return false;
-      }
-   }
+   // TODO: These has_ checks should probably be changed to check_
+   consteval bool has_opening_handled(auto&& o) { return o.internal & uint32_t(opts_internal::opening_handled); }
 
-   consteval bool check_use_headers(auto&& Opts)
-   {
-      if constexpr (requires { Opts.use_headers; }) {
-         return Opts.use_headers;
-      }
-      else {
-         return true;
-      }
-   }
+   consteval bool has_closing_handled(auto&& o) { return o.internal & uint32_t(opts_internal::closing_handled); }
 
-   consteval uint8_t check_layout(auto&& Opts)
-   {
-      if constexpr (requires { Opts.layout; }) {
-         return Opts.layout;
-      }
-      else {
-         return rowwise;
-      }
-   }
+   consteval bool has_ws_handled(auto&& o) { return o.internal & uint32_t(opts_internal::ws_handled); }
 
-   consteval float_precision check_float_max_write_precision(auto&& Opts)
-   {
-      if constexpr (requires { Opts.float_max_write_precision; }) {
-         return Opts.float_max_write_precision;
-      }
-      else {
-         return {};
-      }
-   }
+   consteval bool has_no_header(auto&& o) { return o.internal & uint32_t(opts_internal::no_header); }
 
-   consteval bool check_opening_handled(auto&& o) { return o.internal & uint32_t(opts_internal::opening_handled); }
-
-   consteval bool check_closing_handled(auto&& o) { return o.internal & uint32_t(opts_internal::closing_handled); }
-
-   consteval bool check_ws_handled(auto&& o) { return o.internal & uint32_t(opts_internal::ws_handled); }
-
-   consteval bool check_no_header(auto&& o) { return o.internal & uint32_t(opts_internal::no_header); }
-
-   consteval bool check_disable_write_unknown(auto&& o)
+   consteval bool has_disable_write_unknown(auto&& o)
    {
       return o.internal & uint32_t(opts_internal::disable_write_unknown);
    }
 
-   consteval bool check_is_padded(auto&& o) { return o.internal & uint32_t(opts_internal::is_padded); }
+   consteval bool has_is_padded(auto&& o) { return o.internal & uint32_t(opts_internal::is_padded); }
 
-   consteval bool check_disable_padding(auto&& o) { return o.internal & uint32_t(opts_internal::disable_padding); }
+   consteval bool has_disable_padding(auto&& o) { return o.internal & uint32_t(opts_internal::disable_padding); }
 
-   consteval bool check_write_unchecked(auto&& o) { return o.internal & uint32_t(opts_internal::write_unchecked); }
+   consteval bool has_write_unchecked(auto&& o) { return o.internal & uint32_t(opts_internal::write_unchecked); }
 
    template <auto Opts>
    constexpr auto opening_handled()
@@ -501,10 +434,10 @@ namespace glz
    template <uint32_t Format = INVALID>
    struct skip_value;
 
-   template <class T, uint32_t Format>
+   template <uint32_t Format, class T>
    concept write_supported = requires { to<Format, std::remove_cvref_t<T>>{}; };
 
-   template <class T, uint32_t Format>
+   template <uint32_t Format, class T>
    concept read_supported = requires { from<Format, std::remove_cvref_t<T>>{}; };
 
    // These templates save typing by determining the core type used to select the proper to/from specialization
